@@ -1,13 +1,14 @@
 import userModel from "../model/user.model.js";
 import nodemailer from "nodemailer";
 import bcrypt from "bcrypt";
+import jwt from 'jsonwebtoken'
 
 const signup = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
         message: "All fields are required",
       });
@@ -15,7 +16,7 @@ const signup = async (req, res) => {
     const user = await userModel.findOne({ email });
 
     if (user) {
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
         message: "Email Already Exits..",
       });
@@ -87,14 +88,14 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
         message: "All fields required..",
       });
     }
     const user = await userModel.findOne({ email });
     if (!user) {
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
         message: "Incorrect email password..",
       });
@@ -102,26 +103,32 @@ const login = async (req, res) => {
 
     const isPasswordMatch = await bcrypt.compare(password, user.password);
     if (!isPasswordMatch) {
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
         message: "Incorrect Email or Password.",
       });
     }
-
+    const token = jwt.sign(
+      {id:user._id,email:user.email},
+      process.env.JWT_SECRET,
+      {expiresIn:'1h'}
+    );
     if (user) {
       if (user.verficationStatus === true) {
+        
         return res.status(200).json({
           success: true,
-          message: `Welcome back ${user.fullName}`,
+          message: `Welcome back ${user.name}`,
+          token,
         });
       } else {
-        return res.status(400).json({
+        return res.status(401).json({
           success: false,
           message: `Please verify Email..`,
         });
       }
     } else {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
         message: `User does not exists`,
       });
